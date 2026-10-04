@@ -1,0 +1,50 @@
+name: Cleanup Actions Storage
+
+# Actions ストレージ（無料枠 0.5GB/月）を空けるための定期メンテナンス。
+# 保持期間より古い workflow run のログと、残っているアーティファクトを削除する。
+#
+# 2026-08-19、"You have used 100% of the Actions storage" の通知を受けて追加。
+# このリポジトリは upload-artifact を使っていないため、ストレージの実体は実行ログ。
+# publish.yml が毎時走る分、run が積み上がり続けるのを自動で刈り取る。
+#
+# 手動実行（workflow_dispatch）はデフォルトで実際に削除する。中身を先に見たいときは
+# dry_run=true にすると削除対象を一覧表示するだけで終わる。
+on:
+  schedule:
+    - cron: '20 17 * * *'   # 毎日 JST 02:20（投稿枠と重ならない時間帯）
+  workflow_dispatch:
+    inputs:
+      retention_days:
+        description: "この日数より古い run を削除する"
+        required: false
+        type: string
+        default: "14"
+      dry_run:
+        description: "true にすると削除せず対象を一覧表示するだけ"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: write            # workflow run / artifact の削除に必要
+
+concurrency:
+  group: cleanup-actions-storage
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    # 公開リポジトリで秘密情報なしに定期実行が失敗しないよう、変数で明示的に有効化する
+    if: vars.ENABLE_AUTOMATION == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Delete old workflow runs and artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_REPO: ${{ github.repository }}
+          RETENTION_DAYS: ${{ inputs.retention_days || '14' }}
+          DRY_RUN: ${{ inputs.dry_run || 'false' }}
+        run: bash scripts/cleanup_actions_storage.sh

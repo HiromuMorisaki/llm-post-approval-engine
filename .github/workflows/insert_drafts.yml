@@ -1,0 +1,38 @@
+name: Insert Draft Posts
+
+# 手動で用意した下書きJSON(drafts/*.json)を投稿管理シートへ投入する。
+# 配信可否は各postの値に従う（デフォルト ×＝自動投稿対象外）。
+#
+# main へマージ後は workflow_dispatch で drafts_file を指定して実行する。
+# （ブランチ上で一回限り実行したいときは一時的に push トリガを足して push する。
+#   2026-06-22 分・2026-07-02 分は push トリガで実行済み・投入完了のため
+#   トリガは外してある。）
+on:
+  workflow_dispatch:
+    inputs:
+      drafts_file:
+        description: "投入する下書きJSONのパス (例: drafts/example.json)"
+        required: true
+        type: string
+
+jobs:
+  insert:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Insert drafts into spreadsheet
+        env:
+          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+          SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+          DRAFTS_FILE: ${{ inputs.drafts_file }}
+        run: python scripts/insert_drafts.py

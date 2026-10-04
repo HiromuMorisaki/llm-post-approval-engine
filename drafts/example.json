@@ -1,0 +1,21 @@
+{
+  "lens": "example",
+  "posts": [
+    {
+      "scheduled_at": "2026-10-05 19:00:00",
+      "platform": "X",
+      "prompt_pattern": "news-opinion",
+      "is_publishable": "×",
+      "is_note_promo": "×",
+      "note_no": "",
+      "post_type": "failure",
+      "fact_sources": ["facts:F03"],
+      "visual_description": "クイズ画面のスクリーンショット。正解がいつも先頭に表示されていた状態を示す",
+      "cta_type": "none",
+      "media_url": "https://example.com/quiz-screen.jpg",
+      "content": [
+        "クイズアプリで、正解がいつも一番上のボタンだった。\n\nAIに作らせた問題データをそのまま並べていたのが原因。\n\n表示のときだけ選択肢をシャッフルし、テストで固定した。"
+      ]
+    }
+  ]
+}

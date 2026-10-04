@@ -1,0 +1,47 @@
+name: Fetch Post Metrics
+
+on:
+  schedule:
+    # 投稿枠(JST 08:00/12:00/19:00)の約1時間後に計測する。
+    # 1h・24h・168h のチェックポイントのうち、1h は取り逃すと二度と観測できないため、
+    # 1日1回ではなく投稿枠ごとに実行する。実際に計測するのは「未記録のチェックポイントを
+    # 通過した投稿」だけなので、全件を毎回叩いていた頃よりAPI呼び出しは減る。
+    - cron: '10 0,4,11 * * *'   # JST 09:10 / 13:10 / 20:10
+  workflow_dispatch: # 手動実行用
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  fetch_metrics:
+    # 公開リポジトリで秘密情報なしに定期実行が失敗しないよう、変数で明示的に有効化する
+    if: vars.ENABLE_AUTOMATION == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Metrics Fetch Script
+        env:
+          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+          SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+          TWITTER_API_KEY: ${{ secrets.TWITTER_API_KEY }}
+          TWITTER_API_SECRET: ${{ secrets.TWITTER_API_SECRET }}
+          TWITTER_ACCESS_TOKEN: ${{ secrets.TWITTER_ACCESS_TOKEN }}
+          TWITTER_ACCESS_SECRET: ${{ secrets.TWITTER_ACCESS_SECRET }}
+          THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+          THREADS_ACCESS_TOKEN_SHIGOTO: ${{ secrets.THREADS_ACCESS_TOKEN_SHIGOTO }}
+          THREADS_ACCESS_TOKEN_PAPA: ${{ secrets.THREADS_ACCESS_TOKEN_PAPA }}
+          # X API Free ではツイートを読めないため既定で無効。Basic 以上に上げたら
+          # リポジトリ変数 MEASURE_X を true にすると X も計測対象になる。
+          MEASURE_X: ${{ vars.MEASURE_X }}
+        run: python fetch_metrics.py

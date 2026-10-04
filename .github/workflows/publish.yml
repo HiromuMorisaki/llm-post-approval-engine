@@ -1,0 +1,53 @@
+name: Publish Posts to SNS
+
+on:
+  schedule:
+    # 毎時7分に実行し、時間になった投稿があれば送信する
+    # （毎時0分はGitHub Actionsの混雑でスキップされやすいため避ける）
+    #
+    # 2026-08-19: Actions ストレージ(無料枠 0.5GB)が 100% に達したため、
+    # 30分毎(48回/日) → 28回/日 に削減した。ストレージの実体は run のログなので、
+    # run 数がそのまま消費量になる。もともと GitHub 側の間引きで実効間隔は
+    # 1.5〜4時間であり、正確な時刻は cron-job.org からの
+    # workflow_dispatch が担っているため、Actions cron はフォールバックと割り切る。
+    - cron: '7 * * * *'
+    # 予約が集中する JST 8/12/19/22 時台だけは、間引かれた場合の保険として30分刻みを残す
+    - cron: '37 23,3,10,13 * * *'
+  workflow_dispatch: # 手動実行用
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    # 公開リポジトリで秘密情報なしに定期実行が失敗しないよう、変数で明示的に有効化する
+    if: vars.ENABLE_AUTOMATION == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Publishing Script
+        env:
+          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+          SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+          TWITTER_API_KEY: ${{ secrets.TWITTER_API_KEY }}
+          TWITTER_API_SECRET: ${{ secrets.TWITTER_API_SECRET }}
+          TWITTER_ACCESS_TOKEN: ${{ secrets.TWITTER_ACCESS_TOKEN }}
+          TWITTER_ACCESS_SECRET: ${{ secrets.TWITTER_ACCESS_SECRET }}
+          THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+          THREADS_USER_ID: ${{ secrets.THREADS_USER_ID }}
+          THREADS_ACCESS_TOKEN_SHIGOTO: ${{ secrets.THREADS_ACCESS_TOKEN_SHIGOTO }}
+          THREADS_USER_ID_SHIGOTO: ${{ secrets.THREADS_USER_ID_SHIGOTO }}
+          THREADS_ACCESS_TOKEN_PAPA: ${{ secrets.THREADS_ACCESS_TOKEN_PAPA }}
+          THREADS_USER_ID_PAPA: ${{ secrets.THREADS_USER_ID_PAPA }}
+        run: python publish.py

@@ -1,0 +1,42 @@
+name: Refresh Threads Token
+
+# Threads の long-lived トークン（60日）を毎月自動でリフレッシュし、
+# 新しいトークンを Actions Secret に書き戻す。これで60日ごとの手作業が不要になる。
+#
+# 必要な準備（1回だけ）:
+#   1. Fine-grained PAT を発行:
+#      GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens
+#      - Repository access: Only select repositories → <owner>/<repo>
+#      - Permissions → Repository permissions → "Secrets": Read and write
+#      - Expiration: 長め(最大1年)に設定し、失効前ローテートのリマインドを入れておく
+#   2. 発行した PAT を Secret `GH_PAT` として登録:
+#      gh secret set GH_PAT -R <owner>/<repo>
+
+on:
+  schedule:
+    - cron: '0 0 1 * *'   # 毎月1日 00:00 UTC (= JST 09:00)。60日期限に対し余裕を持って更新
+  workflow_dispatch: {}    # 手動実行も可（※トークン生成から24h以内は失敗する点に注意）
+
+permissions:
+  contents: read           # secret 書き込みは GH_PAT で行うため GITHUB_TOKEN は read だけ
+
+concurrency:
+  group: refresh-threads-token
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    # 公開リポジトリで秘密情報なしに定期実行が失敗しないよう、変数で明示的に有効化する
+    if: vars.ENABLE_AUTOMATION == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Refresh Threads long-lived tokens and update secrets
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}                 # gh secret set 用の PAT
+          TARGET_REPO: ${{ github.repository }}
+          THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+          THREADS_ACCESS_TOKEN_SHIGOTO: ${{ secrets.THREADS_ACCESS_TOKEN_SHIGOTO }}
+          THREADS_ACCESS_TOKEN_PAPA: ${{ secrets.THREADS_ACCESS_TOKEN_PAPA }}
+        run: bash scripts/refresh_threads_token.sh

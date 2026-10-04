@@ -1,0 +1,9 @@
+.env
+credentials.json
+prompts/persona.md
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+log.txt
+temp_media_*.jpg
